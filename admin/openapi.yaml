@@ -1,0 +1,767 @@
+openapi: 3.1.0
+info:
+  title: Ananta CMS Backend API
+  version: 1.0.0
+  description: >
+    Complete Headless CMS backend API built on Next.js 16 and Supabase.
+    Serves administrative and editorial endpoints under /api/v1.
+servers:
+  - url: /api/v1
+    description: Current deployment origin
+
+paths:
+  /content-types:
+    get:
+      summary: List all content types
+      operationId: listContentTypes
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: List of content type definitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      summary: Create a new content type (admin only)
+      operationId: createContentType
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - name
+              properties:
+                key:
+                  type: string
+                  pattern: '^[a-z][a-z0-9_]*$'
+                  example: events
+                name:
+                  type: string
+                  example: Events
+                is_singleton:
+                  type: boolean
+                  default: false
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Field'
+      responses:
+        '201':
+          description: Content type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /content-types/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get content type by key
+      operationId: getContentType
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Content type details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentType'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update content type name or fields (admin only)
+      operationId: updateContentType
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Field'
+                is_singleton:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated content type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentType'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/{type}:
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List items for content type (draft view with change flags)
+      operationId: listContentItems
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: List of content items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentItem'
+    post:
+      summary: Create draft content item
+      operationId: createContentItem
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  description: Optional custom slug. If omitted, auto-generated.
+                data:
+                  type: object
+                  description: Content fields matching schema
+      responses:
+        '201':
+          description: Draft content item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentItem'
+        '409':
+          description: Singleton exists or slug conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /content/{type}/{id}:
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get content item by ID
+      operationId: getContentItem
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Content item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update draft content item with optimistic concurrency check
+      operationId: updateContentItem
+      security:
+        - SupabaseAuth: []
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: Current row version number for concurrency locking
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                slug:
+                  type: string
+                sort_order:
+                  type: integer
+                version:
+                  type: integer
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentItem'
+        '409':
+          description: Version conflict with latest row returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      current:
+                        $ref: '#/components/schemas/ContentItem'
+        '428':
+          description: If-Match header missing
+    delete:
+      summary: Soft-delete content item
+      operationId: deleteContentItem
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Item soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  item:
+                    $ref: '#/components/schemas/ContentItem'
+
+  /content/{type}/reorder:
+    parameters:
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Reorder items by array index
+      operationId: reorderContentItems
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Items successfully reordered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reordered:
+                    type: integer
+
+  /media/sign:
+    post:
+      summary: Request direct upload signed URL
+      operationId: signMediaUpload
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+                - mime
+                - size
+              properties:
+                filename:
+                  type: string
+                mime:
+                  type: string
+                  enum: [image/png, image/jpeg, image/webp, image/avif]
+                size:
+                  type: integer
+                  maximum: 5242880
+      responses:
+        '200':
+          description: Signed upload URL and storage token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signedUrl:
+                    type: string
+                  token:
+                    type: string
+                  path:
+                    type: string
+
+  /media:
+    get:
+      summary: List registered media objects
+      operationId: listMedia
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: List of media files
+    post:
+      summary: Register uploaded media file
+      operationId: registerMedia
+      security:
+        - SupabaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - path
+              properties:
+                path:
+                  type: string
+                alt:
+                  type: string
+      responses:
+        '201':
+          description: Media registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  public_url:
+                    type: string
+
+  /publish/preview:
+    get:
+      summary: Preview unpublished changes and soft deletions
+      operationId: previewPublishChanges
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: List of pending changes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        id:
+                          type: string
+                        slug:
+                          type: string
+                        change:
+                          type: string
+                          enum: [added, modified, deleted]
+                        before:
+                          type: object
+                          nullable: true
+                        after:
+                          type: object
+                          nullable: true
+
+  /publish:
+    post:
+      summary: Trigger atomic publish pipeline
+      operationId: publishAll
+      security:
+        - SupabaseAuth: []
+      responses:
+        '202':
+          description: Publish initiated and snapshot uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  release_id:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+        '409':
+          description: Publish in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /releases:
+    get:
+      summary: List releases ordered newest first
+      operationId: listReleases
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: List of releases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Release'
+
+  /releases/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Lazily verify deployment confirmation
+      operationId: getReleaseStatus
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Verified release status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, building, live, failed]
+                  version:
+                    type: integer
+                  deployed_at:
+                    type: string
+                    nullable: true
+                  error:
+                    type: string
+                    nullable: true
+
+  /releases/{id}/retry:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Retry a failed release
+      operationId: retryRelease
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Release set to building and hook triggered
+        '400':
+          description: Only failed releases can be retried
+
+  /releases/{id}/rollback:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Rollback database and snapshot to specified release (admin only)
+      operationId: rollbackRelease
+      security:
+        - SupabaseAuth: []
+      responses:
+        '202':
+          description: Rollback release created and deploy hook triggered
+
+  /overview:
+    get:
+      summary: Get dashboard overview metrics
+      operationId: getOverview
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: Live version, pending change count, active release
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  live_version:
+                    type: integer
+                    nullable: true
+                  live_published_at:
+                    type: string
+                    nullable: true
+                  pending_changes:
+                    type: integer
+                  active_release:
+                    type: object
+                    nullable: true
+
+  /cron/verify:
+    get:
+      summary: Cron endpoint to verify active building releases
+      operationId: cronVerifyReleases
+      security:
+        - BearerCronAuth: []
+      responses:
+        '200':
+          description: Releases checked
+        '401':
+          description: Invalid cron bearer secret
+
+  /me:
+    get:
+      summary: Get currently authenticated user profile
+      operationId: getCurrentUser
+      security:
+        - SupabaseAuth: []
+      responses:
+        '200':
+          description: User profile and role
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  full_name:
+                    type: string
+                    nullable: true
+                  role:
+                    type: string
+                    enum: [admin, editor]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    SupabaseAuth:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: Supabase session cookie
+    BearerCronAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token containing CRON_SECRET
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+    Field:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, richtext, number, date, time, datetime, image, url, boolean, select, list, group]
+        required:
+          type: boolean
+        options:
+          type: array
+          items:
+            type: string
+        of:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+
+    ContentType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+        is_singleton:
+          type: boolean
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        created_at:
+          type: string
+
+    ContentItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type_key:
+          type: string
+        slug:
+          type: string
+        sort_order:
+          type: integer
+        draft_data:
+          type: object
+        published_data:
+          type: object
+          nullable: true
+        status:
+          type: string
+          enum: [draft, published, archived]
+        version:
+          type: integer
+        is_deleted:
+          type: boolean
+        has_unpublished_changes:
+          type: boolean
+        updated_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        published_at:
+          type: string
+          nullable: true
+
+    Release:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        snapshot_path:
+          type: string
+        checksum:
+          type: string
+        status:
+          type: string
+          enum: [pending, building, live, failed]
+        created_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        deployed_at:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Role not authorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict or concurrency mismatch
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

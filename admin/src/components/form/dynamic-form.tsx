@@ -30,7 +30,7 @@ interface DynamicFormProps {
 
 export function DynamicForm({
   fields,
-  initialData = {},
+  initialData,
   onSubmit,
   loading = false,
   submitLabel = "Save Changes",
@@ -40,7 +40,7 @@ export function DynamicForm({
   const [formData, setFormData] = useState<Record<string, unknown>>(() => initialData || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  if (initialData !== prevInitialData) {
+  if (initialData !== undefined && initialData !== prevInitialData) {
     setPrevInitialData(initialData);
     setFormData(initialData || {});
   }

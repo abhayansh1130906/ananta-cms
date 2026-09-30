@@ -191,7 +191,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. If not auth
 
 #### 1. Authentication
 - Navigate to `/login`.
-- Enter your Supabase staff credentials (e.g. `admin@ananta.fest` / password).
+- Use the pre-configured Demo Admin credentials (or click **"Fill Credentials"** directly on `/login`):
+  - **Email**: `admin_123@g.com`
+  - **Password**: `admin_123`
+  - **Role**: `admin` (Full permissions: content CRUD, media, publish, schema builder, rollback)
 - Click **Sign In**.
 - **Expected**: Toast displays *"Welcome back to Ananta CMS"*, and you are redirected to `/dashboard` (Overview).
 

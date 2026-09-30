@@ -47,9 +47,9 @@ export default function EditContentItemPage({
   const [isDirty, setIsDirty] = useState(false);
 
   // Sync item data into local states
-  if (item !== prevItem) {
+  if (item && item !== prevItem) {
     setPrevItem(item);
-    setSlug(item?.slug || "");
+    setSlug(item.slug || "");
   }
 
   // Unsaved changes warning

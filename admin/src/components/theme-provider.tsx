@@ -25,13 +25,18 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem(storageKey) as Theme;
-      return saved || defaultTheme;
+      if (saved && ["dark", "light", "system"].includes(saved)) {
+        setTheme(saved);
+      }
+    } catch {
+      // ignore localStorage errors
     }
-    return defaultTheme;
-  });
+  }, [storageKey]);
 
   const isDark =
     theme === "dark" ||

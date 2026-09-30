@@ -1,14 +1,50 @@
 import { z } from "zod";
 
-const field: z.ZodTypeAny = z.lazy(() =>
+export type FieldType =
+  | "text"
+  | "richtext"
+  | "number"
+  | "date"
+  | "time"
+  | "datetime"
+  | "image"
+  | "url"
+  | "boolean"
+  | "select"
+  | "list"
+  | "group";
+
+export interface Field {
+  name: string;
+  label?: string;
+  type: FieldType;
+  required?: boolean;
+  options?: string[];
+  of?: Field[];
+}
+
+const field: z.ZodType<Field> = z.lazy(() =>
   z.object({
     name: z.string().min(1),
     label: z.string().optional(),
-    type: z.enum(["text", "richtext", "number", "date", "time", "datetime", "image", "url", "boolean", "select", "list", "group"]),
+    type: z.enum([
+      "text",
+      "richtext",
+      "number",
+      "date",
+      "time",
+      "datetime",
+      "image",
+      "url",
+      "boolean",
+      "select",
+      "list",
+      "group",
+    ]),
     required: z.boolean().optional(),
     options: z.array(z.string()).optional(),
     of: z.array(field).optional(),
-  }),
+  })
 );
 
 export const snapshotSchema = z.object({
@@ -16,10 +52,25 @@ export const snapshotSchema = z.object({
   version: z.number().int().nonnegative(),
   published_at: z.string().min(1),
   checksum: z.string().regex(/^[a-f0-9]{64}$/),
-  schema: z.record(z.string(), z.object({ name: z.string(), is_singleton: z.boolean(), fields: z.array(field) })),
-  types: z.record(z.string(), z.array(z.object({
-    id: z.string().min(1), slug: z.string().min(1), sort_order: z.number(), data: z.record(z.string(), z.unknown()),
-  }))),
+  schema: z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      is_singleton: z.boolean(),
+      fields: z.array(field),
+    })
+  ),
+  types: z.record(
+    z.string(),
+    z.array(
+      z.object({
+        id: z.string().min(1),
+        slug: z.string().min(1),
+        sort_order: z.number(),
+        data: z.record(z.string(), z.unknown()),
+      })
+    )
+  ),
 }).superRefine((value, ctx) => {
   const schemaKeys = Object.keys(value.schema).sort();
   const typeKeys = Object.keys(value.types).sort();
@@ -29,4 +80,3 @@ export const snapshotSchema = z.object({
 });
 
 export type Snapshot = z.infer<typeof snapshotSchema>;
-export type Field = z.infer<typeof field>;

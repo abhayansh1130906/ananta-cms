@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser, useOverview } from "@/lib/query";
@@ -39,6 +39,11 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
   const { data: overview } = useOverview({ refetchInterval: 10000 });
   const { theme, setTheme } = useTheme();
   const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const supabase = createClient();
 
@@ -113,7 +118,9 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Toggle theme">
-              {theme === "dark" ? (
+              {!mounted ? (
+                <Laptop className="h-4 w-4" />
+              ) : theme === "dark" ? (
                 <Moon className="h-4 w-4" />
               ) : theme === "light" ? (
                 <Sun className="h-4 w-4" />

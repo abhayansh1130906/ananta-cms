@@ -302,27 +302,29 @@ export default function ReleasesPage() {
               <ShieldAlert className="w-6 h-6" />
               <DialogTitle>Confirm Rollback to v{rollbackTarget?.version}</DialogTitle>
             </div>
-            <DialogDescription className="pt-2 text-sm space-y-2">
-              <span className="block font-medium text-foreground">
-                This is a high-impact operation.
-              </span>
-              <span className="block text-muted-foreground">
-                Rolling back to version <strong>v{rollbackTarget?.version}</strong> will:
-              </span>
-              <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
-                <li>
-                  Restore the snapshot taken at version <strong>v{rollbackTarget?.version}</strong>.
-                </li>
-                <li>
-                  <strong>OVERWRITE</strong> all currently published content in the database.
-                </li>
-                <li>
-                  <strong>RESTORE DRAFT CONTENT</strong> across all content types to match this historical version. Any unpublished work in progress will be lost.
-                </li>
-                <li>
-                  Trigger an automated rebuild and deployment to take this version live.
-                </li>
-              </ul>
+            <DialogDescription asChild>
+              <div className="pt-2 text-sm space-y-2">
+                <span className="block font-medium text-foreground">
+                  This is a high-impact operation.
+                </span>
+                <span className="block text-muted-foreground">
+                  Rolling back to version <strong>v{rollbackTarget?.version}</strong> will:
+                </span>
+                <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                  <li>
+                    Restore the snapshot taken at version <strong>v{rollbackTarget?.version}</strong>.
+                  </li>
+                  <li>
+                    <strong>OVERWRITE</strong> all currently published content in the database.
+                  </li>
+                  <li>
+                    <strong>RESTORE DRAFT CONTENT</strong> across all content types to match this historical version. Any unpublished work in progress will be lost.
+                  </li>
+                  <li>
+                    Trigger an automated rebuild and deployment to take this version live.
+                  </li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
 

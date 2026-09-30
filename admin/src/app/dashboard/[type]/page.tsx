@@ -72,9 +72,9 @@ export default function ContentTypeListPage({
   const [deleting, setDeleting] = useState(false);
 
   // Sync items into local state for drag-and-drop
-  if (items !== prevItems) {
+  if (items && items !== prevItems) {
     setPrevItems(items);
-    setOrderedItems(items || []);
+    setOrderedItems(items);
   }
 
   // Singleton redirect rule: singleton types skip the list and open the item directly

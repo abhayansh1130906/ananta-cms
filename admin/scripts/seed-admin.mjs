@@ -26,8 +26,12 @@ const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 const secretKey = env.SUPABASE_SECRET_KEY;
 const publishableKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-const email = env.TEST_ADMIN_EMAIL || "admin_123@g.com";
-const password = env.TEST_ADMIN_PASSWORD || "admin_123";
+const email = env.TEST_ADMIN_EMAIL;
+const password = env.TEST_ADMIN_PASSWORD;
+
+if (!email || !password) {
+  throw new Error("TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD must be set in .env.local");
+}
 
 console.log("Connecting to Supabase at:", supabaseUrl);
 console.log("Target Admin User:", email);

@@ -137,36 +137,6 @@ function LoginForm() {
                 )}
               </Button>
 
-              {/* Demo Credentials Helper */}
-              <div className="mt-4 pt-4 border-t space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Demo Admin Access</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail("admin_123@g.com");
-                      setPassword("admin_123");
-                    }}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Fill Credentials
-                  </button>
-                </div>
-                <div className="p-2.5 rounded-lg bg-muted/60 border font-mono text-xs space-y-1 text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Email:</span>
-                    <span className="text-foreground font-semibold select-all">admin_123@g.com</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Password:</span>
-                    <span className="text-foreground font-semibold select-all">admin_123</span>
-                  </div>
-                  <div className="flex justify-between text-[11px] pt-0.5">
-                    <span>Role:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-sans font-medium">admin (Full Access)</span>
-                  </div>
-                </div>
-              </div>
             </form>
           </CardContent>
         </Card>

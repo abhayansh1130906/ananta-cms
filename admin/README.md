@@ -191,10 +191,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. If not auth
 
 #### 1. Authentication
 - Navigate to `/login`.
-- Use the pre-configured Demo Admin credentials (or click **"Fill Credentials"** directly on `/login`):
-  - **Email**: `admin_123@g.com`
-  - **Password**: `admin_123`
-  - **Role**: `admin` (Full permissions: content CRUD, media, publish, schema builder, rollback)
+- Use the admin credentials configured in your local Supabase project.
 - Click **Sign In**.
 - **Expected**: Toast displays *"Welcome back to Ananta CMS"*, and you are redirected to `/dashboard` (Overview).
 
@@ -281,4 +278,3 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. If not auth
      { "version": 1 }
      ```
      This allows `/api/v1/releases/:id/status` and `/api/v1/cron/verify` to confirm that static CDN cache invalidation has finished and the site is officially live.
-

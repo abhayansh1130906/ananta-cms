@@ -56,7 +56,9 @@ async function main() {
 
   // Get admin user
   const { data: usersData } = await adminClient.auth.admin.listUsers();
-  const adminUser = usersData.users.find((u) => u.email === (env.TEST_ADMIN_EMAIL || "admin_123@g.com"));
+  const adminUser = env.TEST_ADMIN_EMAIL
+    ? usersData.users.find((u) => u.email === env.TEST_ADMIN_EMAIL)
+    : null;
 
   console.log("Promoting drafts via publish_all()...");
   const { error: rpcErr } = await adminClient.rpc("publish_all");

@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/audit";
 import { buildSnapshot, type SnapshotItem } from "@/lib/publish/snapshot";
-import { triggerDeployHook } from "@/lib/publish/deploy";
+import { triggerDeployHook, syncLocalWebSnapshot } from "@/lib/publish/deploy";
+import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 
 export const POST = withHandler(
   async (_req: Request, context: { params: Promise<{ id: string }> }) => {
@@ -114,6 +115,8 @@ export const POST = withHandler(
           checksum: snapshot.checksum,
         })
         .eq("id", id);
+
+      await syncLocalWebSnapshot(snapshot);
     } else {
       // Copy existing snapshot to latest/content.json
       const content = await existingSnapshotFile.text();
@@ -124,6 +127,13 @@ export const POST = withHandler(
           cacheControl: "0",
           upsert: true,
         });
+
+      try {
+        const parsed = JSON.parse(content);
+        await syncLocalWebSnapshot(parsed);
+      } catch {
+        // ignore parse error if any
+      }
     }
 
     // Set 'building', clear error
@@ -153,6 +163,23 @@ export const POST = withHandler(
         "DEPLOY_HOOK_FAILED",
         500
       );
+    }
+
+    // Fast-path verification: immediately verify if public site version is already current
+    try {
+      const { data: currentRelease } = await admin
+        .from("releases")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (currentRelease) {
+        await verifyReleaseStatus(currentRelease as unknown as ReleaseRow, {
+          adminClient: admin,
+        });
+      }
+    } catch {
+      // Non-blocking: background polling will handle it if deploy is asynchronous
     }
 
     await logAudit({

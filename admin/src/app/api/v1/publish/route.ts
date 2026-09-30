@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/audit";
 import { buildSnapshot, type SnapshotItem } from "@/lib/publish/snapshot";
-import { triggerDeployHook } from "@/lib/publish/deploy";
+import { triggerDeployHook, syncLocalWebSnapshot } from "@/lib/publish/deploy";
+import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 
 export const POST = withHandler(async () => {
   const { user } = await requireRole(["admin", "editor"]);
@@ -126,6 +127,9 @@ export const POST = withHandler(async () => {
     })
     .eq("id", releaseId);
 
+  // Sync directly to local web frontend in monorepo if present
+  await syncLocalWebSnapshot(snapshot);
+
   // Step 5: Transition to 'building' and trigger deploy hook
   await admin
     .from("releases")
@@ -145,6 +149,23 @@ export const POST = withHandler(async () => {
       .eq("id", releaseId);
 
     return error(`Failed to trigger deploy hook: ${errorMsg}`, "DEPLOY_HOOK_FAILED", 500);
+  }
+
+  // Fast-path verification: immediately verify if public site version is already current
+  try {
+    const { data: currentRelease } = await admin
+      .from("releases")
+      .select("*")
+      .eq("id", releaseId)
+      .maybeSingle();
+
+    if (currentRelease) {
+      await verifyReleaseStatus(currentRelease as unknown as ReleaseRow, {
+        adminClient: admin,
+      });
+    }
+  } catch {
+    // Non-blocking: background polling will handle it if deploy is asynchronous
   }
 
   // Step 6: Log audit and return 202

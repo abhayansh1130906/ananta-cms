@@ -44,7 +44,7 @@ export default function ReleasesPage() {
   const isAdmin = user?.role === "admin";
 
   const { data: releases, isLoading, error } = useReleases({
-    refetchInterval: 5000,
+    refetchInterval: 3000,
   });
 
   // Check if there are running releases to keep polling

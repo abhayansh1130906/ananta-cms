@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/audit";
 import { checksum } from "@/lib/publish/checksum";
-import { triggerDeployHook } from "@/lib/publish/deploy";
+import { triggerDeployHook, syncLocalWebSnapshot } from "@/lib/publish/deploy";
+import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 import type { Snapshot } from "@/lib/publish/snapshot";
 
 import type { Json } from "@/types/database";
@@ -152,6 +153,9 @@ export const POST = withHandler(
         upsert: true,
       });
 
+    // Sync directly to local web frontend in monorepo if present
+    await syncLocalWebSnapshot(newSnapshot);
+
     // 8. Update release row status to 'building'
     await admin
       .from("releases")
@@ -176,6 +180,23 @@ export const POST = withHandler(
         .eq("id", newReleaseId);
 
       return error(`Failed to trigger deploy hook: ${errorMsg}`, "DEPLOY_HOOK_FAILED", 500);
+    }
+
+    // Fast-path verification: immediately verify if public site version is already current
+    try {
+      const { data: currentRelease } = await admin
+        .from("releases")
+        .select("*")
+        .eq("id", newReleaseId)
+        .maybeSingle();
+
+      if (currentRelease) {
+        await verifyReleaseStatus(currentRelease as unknown as ReleaseRow, {
+          adminClient: admin,
+        });
+      }
+    } catch {
+      // Non-blocking: background polling will handle it if deploy is asynchronous
     }
 
     // 10. Audit log and return 202

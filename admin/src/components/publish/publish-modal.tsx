@@ -54,7 +54,7 @@ export function PublishModal({ open, onOpenChange }: PublishModalProps) {
   // Poll active release if one is running
   const { data: releaseStatus } = useReleaseStatus(activeReleaseId, {
     enabled: Boolean(activeReleaseId),
-    refetchInterval: 5000,
+    refetchInterval: 1500,
   });
 
   // Handle release reaching terminal state

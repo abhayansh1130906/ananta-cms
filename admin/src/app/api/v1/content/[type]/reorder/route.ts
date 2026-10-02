@@ -9,13 +9,16 @@ import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const reorderSchema = z.object({
-  ids: z.array(z.string().uuid("Invalid item UUID")),
+  ids: z
+    .array(z.string().uuid("Invalid item UUID"))
+    .min(1, "At least one ID must be provided")
+    .max(500, "Cannot reorder more than 500 items in a single request"),
 });
 
 export const POST = withHandler(async (req: Request, context: { params: Promise<{ type: string }> }) => {
-  const { user } = await requireRole(["admin", "editor"]);
+  const { user } = await requireRole(["editor", "admin", "super_admin"]);
   const { type } = await context.params;
-  checkRateLimit(`content_reorder_${user.id}`);
+  checkRateLimit(`content_reorder_${user.id}`, 30, 60000);
 
   const body = await req.json().catch(() => null);
   if (!body) {
@@ -40,7 +43,8 @@ export const POST = withHandler(async (req: Request, context: { params: Promise<
   const results = await Promise.all(updatePromises);
   const failed = results.find((r) => r.error);
   if (failed?.error) {
-    return error(failed.error.message, "DB_ERROR", 500);
+    console.error("[Reorder DB Error]", failed.error);
+    return error("Failed to update item ordering in database", "DB_ERROR", 500);
   }
 
   await logAudit({

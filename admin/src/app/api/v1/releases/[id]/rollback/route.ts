@@ -16,7 +16,7 @@ import type { Json } from "@/types/database";
 export const POST = withHandler(
   async (_req: Request, context: { params: Promise<{ id: string }> }) => {
     // Admin only
-    const { user } = await requireRole("admin");
+    const { user } = await requireRole(["admin", "super_admin"]);
     const { id } = await context.params;
     checkRateLimit(`release_rollback_${user.id}`);
 
@@ -30,7 +30,8 @@ export const POST = withHandler(
       .maybeSingle();
 
     if (dbError) {
-      return error(dbError.message, "DB_ERROR", 500);
+      console.error("[Release Rollback DB Error]", dbError);
+      return error("Failed to retrieve release record", "DB_ERROR", 500);
     }
     if (!targetRelease) {
       throw new NotFoundError(`Release '${id}' not found`);

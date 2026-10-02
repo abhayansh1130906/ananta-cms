@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { displayTitle, getItems, getSchema, getTypes, getVersion, type Item } from "@/lib/content";
-import { GenericSection, Renderer } from "./renderers";
+import { Renderer } from "./renderers";
 
 const special = new Set(["events", "announcements", "schedule", "coordinators", "faqs", "pages"]);
 

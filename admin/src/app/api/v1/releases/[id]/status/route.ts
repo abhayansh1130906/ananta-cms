@@ -6,10 +6,15 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 
+import { z } from "zod";
+
+const idParamSchema = z.string().uuid("Invalid release UUID");
+
 export const GET = withHandler(
   async (_req: Request, context: { params: Promise<{ id: string }> }) => {
-    await requireRole(["admin", "editor"]);
-    const { id } = await context.params;
+    await requireRole(["editor", "admin", "super_admin"]);
+    const { id: rawId } = await context.params;
+    const id = idParamSchema.parse(rawId);
     const admin = createAdminClient();
 
     const { data: release, error: dbError } = await admin
@@ -19,7 +24,8 @@ export const GET = withHandler(
       .maybeSingle();
 
     if (dbError) {
-      return error(dbError.message, "DB_ERROR", 500);
+      console.error("[Release Status GET DB Error]", dbError);
+      return error("Failed to retrieve release status", "DB_ERROR", 500);
     }
     if (!release) {
       throw new NotFoundError(`Release '${id}' not found`);

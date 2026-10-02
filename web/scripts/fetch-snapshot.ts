@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checksum } from "../src/lib/publish/checksum";
+import { checksum, verifyChecksumSignature } from "../src/lib/publish/checksum";
 import { snapshotSchema, type Snapshot } from "../src/lib/snapshot-schema";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -40,9 +40,9 @@ if (!process.env.SNAPSHOT_URL) {
   }
 }
 
-// Fallback to default project snapshot URL if still not set
-if (!process.env.SNAPSHOT_URL) {
-  process.env.SNAPSHOT_URL = "https://olyktzgvvssqjtcoudhf.supabase.co/storage/v1/object/public/snapshots/latest/content.json";
+// Validate SNAPSHOT_URL is provided via environment
+if (!process.env.SNAPSHOT_URL && process.env.ALLOW_EMPTY_SNAPSHOT !== "true") {
+  console.warn("[Snapshot Warning] SNAPSHOT_URL is not set.");
 }
 
 const emptySnapshot = (): Snapshot => {
@@ -73,10 +73,22 @@ async function main() {
   const parsed = snapshotSchema.parse(await fetchSnapshot(url));
   const computed = checksum({ schema: parsed.schema, types: parsed.types });
   if (computed !== parsed.checksum) throw new Error(`checksum mismatch: expected ${parsed.checksum}, got ${computed}`);
-  await mkdir(join(root, "src", "data"), { recursive: true });
-  await mkdir(join(root, "public"), { recursive: true });
-  await writeFile(join(root, "src", "data", "content.json"), JSON.stringify(parsed, null, 2) + "\n");
-  await writeFile(join(root, "public", "version.json"), JSON.stringify({
+
+  const signingSecret = process.env.SNAPSHOT_SIGNING_SECRET?.trim();
+  if (signingSecret) {
+    if (!parsed.signature) {
+      throw new Error("Security verification failed: snapshot signature is missing but SNAPSHOT_SIGNING_SECRET is configured.");
+    }
+    const isValid = verifyChecksumSignature(parsed.checksum, parsed.signature, signingSecret);
+    if (!isValid) {
+      throw new Error("Security verification failed: HMAC signature verification failed. The snapshot may be tampered with or corrupted.");
+    }
+    console.log("Snapshot HMAC signature successfully verified.");
+  }
+  await mkdir(join(webRoot, "src", "data"), { recursive: true });
+  await mkdir(join(webRoot, "public"), { recursive: true });
+  await writeFile(join(webRoot, "src", "data", "content.json"), JSON.stringify(parsed, null, 2) + "\n");
+  await writeFile(join(webRoot, "public", "version.json"), JSON.stringify({
     version: parsed.version, release_id: parsed.release_id, published_at: parsed.published_at,
   }, null, 2) + "\n");
   console.log(`Snapshot ${parsed.version} verified (${Object.keys(parsed.types).length} types).`);

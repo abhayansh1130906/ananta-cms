@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const GET = withHandler(async () => {
-  await requireRole(["admin", "editor"]);
+  await requireRole(["editor", "admin", "super_admin"]);
   const admin = createAdminClient();
 
   const { data, error: dbError } = await admin
@@ -15,7 +15,8 @@ export const GET = withHandler(async () => {
     .order("created_at", { ascending: false });
 
   if (dbError) {
-    return error(dbError.message, "DB_ERROR", 500);
+    console.error("[Releases GET DB Error]", dbError);
+    return error("Failed to retrieve releases list", "DB_ERROR", 500);
   }
 
   return json(data || []);

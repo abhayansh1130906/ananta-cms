@@ -12,7 +12,7 @@ import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 
 export const POST = withHandler(
   async (_req: Request, context: { params: Promise<{ id: string }> }) => {
-    const { user } = await requireRole(["admin", "editor"]);
+    const { user } = await requireRole(["admin", "super_admin"]);
     const { id } = await context.params;
     checkRateLimit(`release_retry_${user.id}`);
 
@@ -25,7 +25,8 @@ export const POST = withHandler(
       .maybeSingle();
 
     if (dbError) {
-      return error(dbError.message, "DB_ERROR", 500);
+      console.error("[Release Retry DB Error]", dbError);
+      return error("Failed to retrieve release record", "DB_ERROR", 500);
     }
     if (!release) {
       throw new NotFoundError(`Release '${id}' not found`);

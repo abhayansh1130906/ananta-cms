@@ -15,7 +15,7 @@ export interface PreviewChange {
 }
 
 export const GET = withHandler(async () => {
-  await requireRole(["admin", "editor"]);
+  await requireRole(["editor", "admin", "super_admin"]);
   const admin = createAdminClient();
 
   // Find all items that have unpublished changes or are soft-deleted
@@ -25,7 +25,8 @@ export const GET = withHandler(async () => {
     .or("has_unpublished_changes.eq.true,is_deleted.eq.true");
 
   if (dbError) {
-    return error(dbError.message, "DB_ERROR", 500);
+    console.error("[Publish Preview DB Error]", dbError);
+    return error("Failed to generate publish preview", "DB_ERROR", 500);
   }
 
   const changes: PreviewChange[] = [];

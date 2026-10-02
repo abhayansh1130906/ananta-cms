@@ -52,6 +52,7 @@ export const snapshotSchema = z.object({
   version: z.number().int().nonnegative(),
   published_at: z.string().min(1),
   checksum: z.string().regex(/^[a-f0-9]{64}$/),
+  signature: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   schema: z.record(
     z.string(),
     z.object({

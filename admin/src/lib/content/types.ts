@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type FieldType =
   | "text"
   | "richtext"
@@ -25,6 +27,36 @@ export interface Field {
   options?: string[];
   of?: Field[];
 }
+
+export const fieldTypeEnum = z.enum([
+  "text",
+  "richtext",
+  "number",
+  "date",
+  "time",
+  "datetime",
+  "image",
+  "url",
+  "boolean",
+  "select",
+  "list",
+  "group",
+]);
+
+export const fieldDefinitionSchema: z.ZodType<Field> = z.lazy(() =>
+  z.object({
+    name: z
+      .string()
+      .min(1, "Field name is required")
+      .max(64, "Field name must be under 64 characters")
+      .regex(/^[a-z][a-z0-9_]*$/, "Field name must be lowercase alphanumeric with underscores"),
+    label: z.string().max(100).optional(),
+    type: fieldTypeEnum,
+    required: z.boolean().optional(),
+    options: z.array(z.string().max(100)).max(50).optional(),
+    of: z.array(fieldDefinitionSchema).max(20).optional(),
+  })
+);
 
 export interface ContentTypeSchema {
   name: string;

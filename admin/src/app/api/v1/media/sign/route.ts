@@ -18,14 +18,14 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 const signMediaSchema = z.object({
-  filename: z.string().min(1, "Filename is required"),
+  filename: z.string().min(1, "Filename is required").max(255, "Filename too long"),
   mime: z.string().min(1, "MIME type is required"),
   size: z.number().int().positive("Size must be greater than 0"),
 });
 
 export const POST = withHandler(async (req: Request) => {
-  const { user } = await requireRole(["admin", "editor"]);
-  checkRateLimit(`media_sign_${user.id}`);
+  const { user } = await requireRole(["admin", "super_admin"]);
+  checkRateLimit(`media_sign_${user.id}`, 30, 60000);
 
   const body = await req.json().catch(() => null);
   if (!body) {

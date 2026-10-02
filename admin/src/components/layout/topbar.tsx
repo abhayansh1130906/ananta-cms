@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser, useOverview } from "@/lib/query";
@@ -33,17 +33,15 @@ interface TopbarProps {
   onToggleSidebar?: () => void;
 }
 
+const emptySubscribe = () => () => {};
+
 export function Topbar({ onToggleSidebar }: TopbarProps) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: overview } = useOverview({ refetchInterval: 10000 });
   const { theme, setTheme } = useTheme();
   const [publishModalOpen, setPublishModalOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const supabase = createClient();
 

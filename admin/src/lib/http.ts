@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import crypto from "node:crypto";
 
 export class HttpError extends Error {
   status: number;
@@ -34,7 +35,7 @@ export class NotFoundError extends HttpError {
 }
 
 export class ConflictError extends HttpError {
-  constructor(message = "Conflict", code = "CONFLICT", data?: unknown) {
+  constructor(message = "Conflict: record already exists", code = "CONFLICT", data?: unknown) {
     super(409, message, code, data);
   }
 }
@@ -55,10 +56,12 @@ export function error(
   status = 400,
   extra?: Record<string, unknown>
 ) {
+  const requestId = crypto.randomUUID();
   return NextResponse.json(
     {
       error: message,
       code,
+      request_id: requestId,
       ...(extra || {}),
     },
     { status }
@@ -69,35 +72,61 @@ export function withHandler<C = void>(
   handler: (req: Request, context: C) => Promise<NextResponse | Response>
 ) {
   return async (req: Request, context?: unknown): Promise<NextResponse | Response> => {
+    const requestId = crypto.randomUUID();
     try {
       return await handler(req, context as C);
     } catch (err: unknown) {
       if (err instanceof HttpError) {
-        return error(
-          err.message,
-          err.code,
-          err.status,
-          err.data ? (err.data as Record<string, unknown>) : undefined
+        return NextResponse.json(
+          {
+            error: err.message,
+            code: err.code,
+            request_id: requestId,
+            ...(err.data ? { details: err.data } : {}),
+          },
+          { status: err.status }
         );
       }
 
       if (err instanceof ZodError) {
-        return error("Validation failed", "VALIDATION_ERROR", 400, {
-          issues: err.issues,
-        });
+        const issues = err.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        }));
+        return NextResponse.json(
+          {
+            error: "Validation failed: please check your input",
+            code: "VALIDATION_ERROR",
+            request_id: requestId,
+            issues,
+          },
+          { status: 400 }
+        );
       }
 
       const e = err as { code?: string; message?: string };
       // Postgres unique constraint violation
       if (e?.code === "23505") {
-        return error(e.message || "Conflict: record already exists", "CONFLICT", 409);
+        console.warn(`[Unique Constraint Conflict] [RequestID: ${requestId}]`, e.message);
+        return NextResponse.json(
+          {
+            error: "Conflict: a record with these unique details already exists",
+            code: "CONFLICT",
+            request_id: requestId,
+          },
+          { status: 409 }
+        );
       }
 
-      console.error("[API Error]", err);
-      return error(
-        e?.message || "Internal server error",
-        "INTERNAL_ERROR",
-        500
+      // Never leak stack traces, database details, or internal server paths
+      console.error(`[Internal Server Error] [RequestID: ${requestId}]`, err);
+      return NextResponse.json(
+        {
+          error: "An unexpected internal server error occurred",
+          code: "INTERNAL_ERROR",
+          request_id: requestId,
+        },
+        { status: 500 }
       );
     }
   };

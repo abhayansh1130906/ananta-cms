@@ -76,5 +76,22 @@ describe("RBAC and requireRole helper", () => {
     expect(hasRequiredRole("admin", ["admin", "editor"])).toBe(true);
     expect(hasRequiredRole("editor", "admin")).toBe(false);
     expect(hasRequiredRole("editor", ["admin", "editor"])).toBe(true);
+    expect(hasRequiredRole("super_admin", "admin")).toBe(true);
+    expect(hasRequiredRole("super_admin", "editor")).toBe(true);
+    expect(hasRequiredRole("super_admin", "super_admin")).toBe(true);
+    expect(hasRequiredRole("admin", "super_admin")).toBe(false);
+  });
+
+  it("allows super_admin access for admin and editor required routes", async () => {
+    const mockClient = createMockSupabaseClient(
+      { id: "super-user" },
+      { id: "super-user", role: "super_admin", full_name: "Super Boss" }
+    );
+
+    const ctxAdmin = await requireRole("admin", mockClient);
+    expect(ctxAdmin.profile.role).toBe("super_admin");
+
+    const ctxEditor = await requireRole("editor", mockClient);
+    expect(ctxEditor.profile.role).toBe("super_admin");
   });
 });

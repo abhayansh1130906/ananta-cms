@@ -13,7 +13,7 @@ import type { Field } from "@/lib/content/types";
 import type { Json } from "@/types/database";
 
 export const GET = withHandler(async (_req: Request, context: { params: Promise<{ type: string }> }) => {
-  await requireRole(["admin", "editor"]);
+  await requireRole(["editor", "admin", "super_admin"]);
   const { type } = await context.params;
   const admin = createAdminClient();
 
@@ -25,7 +25,8 @@ export const GET = withHandler(async (_req: Request, context: { params: Promise<
     .maybeSingle();
 
   if (ctError) {
-    return error(ctError.message, "DB_ERROR", 500);
+    console.error("[Content GET ctError]", ctError);
+    return error("Failed to query content type", "DB_ERROR", 500);
   }
   if (!ct) {
     throw new NotFoundError(`Content type '${type}' not found`);
@@ -40,14 +41,15 @@ export const GET = withHandler(async (_req: Request, context: { params: Promise<
     .order("created_at", { ascending: true });
 
   if (itemsError) {
-    return error(itemsError.message, "DB_ERROR", 500);
+    console.error("[Content GET itemsError]", itemsError);
+    return error("Failed to retrieve content items", "DB_ERROR", 500);
   }
 
   return json(items || []);
 });
 
 export const POST = withHandler(async (req: Request, context: { params: Promise<{ type: string }> }) => {
-  const { user } = await requireRole(["admin", "editor"]);
+  const { user } = await requireRole(["editor", "admin", "super_admin"]);
   const { type } = await context.params;
   checkRateLimit(`content_post_${user.id}`);
 
@@ -66,7 +68,8 @@ export const POST = withHandler(async (req: Request, context: { params: Promise<
     .maybeSingle();
 
   if (ctError) {
-    return error(ctError.message, "DB_ERROR", 500);
+    console.error("[Content POST ctError]", ctError);
+    return error("Failed to retrieve content type definition", "DB_ERROR", 500);
   }
   if (!ct) {
     throw new NotFoundError(`Content type '${type}' not found`);
@@ -150,7 +153,8 @@ export const POST = withHandler(async (req: Request, context: { params: Promise<
     if (insertError.code === "23505") {
       return error("Unique constraint violation on type and slug", "CONFLICT", 409);
     }
-    return error(insertError.message, "DB_ERROR", 500);
+    console.error("[Content POST insertError]", insertError);
+    return error("Failed to insert content item", "DB_ERROR", 500);
   }
 
   await logAudit({

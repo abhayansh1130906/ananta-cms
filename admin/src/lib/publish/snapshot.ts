@@ -1,5 +1,5 @@
 import type { ContentTypeSchema, Field } from "../content/types";
-import { checksum } from "./checksum";
+import { checksum, signChecksum } from "./checksum";
 
 export interface SnapshotItem {
   id: string;
@@ -21,6 +21,7 @@ export interface Snapshot {
   version: number;
   published_at: string;
   checksum: string;
+  signature?: string;
   schema: Record<string, ContentTypeSchema>;
   types: Record<string, Array<{ id: string; slug: string; sort_order: number; data: Record<string, unknown> }>>;
 }
@@ -79,11 +80,15 @@ export function buildSnapshot(input: BuildSnapshotInput): Snapshot {
   // Compute checksum over { schema, types }
   const computedChecksum = checksum({ schema, types });
 
+  const signingSecret = process.env.SNAPSHOT_SIGNING_SECRET;
+  const signature = signingSecret ? signChecksum(computedChecksum, signingSecret) : undefined;
+
   return {
     release_id: input.releaseId,
     version: input.version,
     published_at: publishedAt,
     checksum: computedChecksum,
+    ...(signature ? { signature } : {}),
     schema,
     types,
   };

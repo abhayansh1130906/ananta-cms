@@ -11,7 +11,7 @@ import { triggerDeployHook, syncLocalWebSnapshot } from "@/lib/publish/deploy";
 import { verifyReleaseStatus, type ReleaseRow } from "@/lib/publish/verify";
 
 export const POST = withHandler(async () => {
-  const { user } = await requireRole(["admin", "editor"]);
+  const { user } = await requireRole(["admin", "super_admin"]);
   checkRateLimit(`publish_${user.id}`, 10, 60000);
 
   const admin = createAdminClient();
@@ -37,7 +37,8 @@ export const POST = withHandler(async () => {
         409
       );
     }
-    return error(insertError.message, "DB_ERROR", 500);
+    console.error("[Publish Insert DB Error]", insertError);
+    return error("Failed to initialize release in database", "DB_ERROR", 500);
   }
 
   if (!release) {

@@ -33,7 +33,6 @@ export const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "th",
     "td",
     "pre",
-    "iframe",
     "img",
     "span",
     "sub",
@@ -45,6 +44,7 @@ export const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "*": ["class"],
   },
   allowedSchemes: ["http", "https", "mailto", "tel"],
+  disallowedTagsMode: "discard",
 };
 
 export function getMediaBucketBaseUrl(): string {
@@ -66,9 +66,9 @@ export function isValidHttpsUrl(url: string): boolean {
   if (typeof url !== "string") return false;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:";
+    return parsed.protocol === "https:" && parsed.hostname.length > 0;
   } catch {
-    return url.startsWith("https://");
+    return false;
   }
 }
 

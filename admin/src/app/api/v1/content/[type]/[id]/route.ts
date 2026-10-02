@@ -15,15 +15,18 @@ import { z } from "zod";
 
 const updateItemBodySchema = z.object({
   data: z.record(z.string(), z.unknown()).optional(),
-  slug: z.string().optional(),
+  slug: z.string().max(100).optional(),
   sort_order: z.number().int().optional(),
   version: z.number().int().optional(),
 });
 
+const idParamSchema = z.string().uuid("Invalid item UUID parameter");
+
 export const GET = withHandler(
   async (_req: Request, context: { params: Promise<{ type: string; id: string }> }) => {
-    await requireRole(["admin", "editor"]);
-    const { type, id } = await context.params;
+    await requireRole(["editor", "admin", "super_admin"]);
+    const { type, id: rawId } = await context.params;
+    const id = idParamSchema.parse(rawId);
     const admin = createAdminClient();
 
     const { data: item, error: dbError } = await admin
@@ -34,7 +37,8 @@ export const GET = withHandler(
       .maybeSingle();
 
     if (dbError) {
-      return error(dbError.message, "DB_ERROR", 500);
+      console.error("[Content Item GET DB Error]", dbError);
+      return error("Failed to retrieve content item", "DB_ERROR", 500);
     }
     if (!item) {
       throw new NotFoundError(`Content item '${id}' not found`);
@@ -46,8 +50,9 @@ export const GET = withHandler(
 
 export const PUT = withHandler(
   async (req: Request, context: { params: Promise<{ type: string; id: string }> }) => {
-    const { user } = await requireRole(["admin", "editor"]);
-    const { type, id } = await context.params;
+    const { user } = await requireRole(["editor", "admin", "super_admin"]);
+    const { type, id: rawId } = await context.params;
+    const id = idParamSchema.parse(rawId);
     checkRateLimit(`content_put_${user.id}`);
 
     // Read version from If-Match header or fallback to body.version
@@ -85,7 +90,8 @@ export const PUT = withHandler(
         .maybeSingle();
 
       if (ctError) {
-        return error(ctError.message, "DB_ERROR", 500);
+        console.error("[Content Item PUT ctError]", ctError);
+        return error("Failed to retrieve content type schema", "DB_ERROR", 500);
       }
       if (!ct) {
         throw new NotFoundError(`Content type '${type}' not found`);
@@ -126,7 +132,8 @@ export const PUT = withHandler(
       if (updateError.code === "23505") {
         return error("Slug already in use for this content type", "CONFLICT", 409);
       }
-      return error(updateError.message, "DB_ERROR", 500);
+      console.error("[Content Item PUT updateError]", updateError);
+      return error("Failed to update content item", "DB_ERROR", 500);
     }
 
     // Optimistic concurrency check: if no row updated, fetch current row to report 409
@@ -161,8 +168,9 @@ export const PUT = withHandler(
 
 export const DELETE = withHandler(
   async (_req: Request, context: { params: Promise<{ type: string; id: string }> }) => {
-    const { user } = await requireRole(["admin", "editor"]);
-    const { type, id } = await context.params;
+    const { user } = await requireRole(["editor", "admin", "super_admin"]);
+    const { type, id: rawId } = await context.params;
+    const id = idParamSchema.parse(rawId);
     checkRateLimit(`content_delete_${user.id}`);
 
     const admin = createAdminClient();
@@ -180,7 +188,8 @@ export const DELETE = withHandler(
       .maybeSingle();
 
     if (deleteError) {
-      return error(deleteError.message, "DB_ERROR", 500);
+      console.error("[Content Item DELETE deleteError]", deleteError);
+      return error("Failed to delete content item", "DB_ERROR", 500);
     }
     if (!updated) {
       throw new NotFoundError(`Content item '${id}' not found`);

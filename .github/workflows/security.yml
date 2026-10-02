@@ -1,0 +1,67 @@
+name: Security, Lint & Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 1' # Weekly security scan
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Gitleaks Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-and-lint:
+    name: Dependency Audit & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            admin/package-lock.json
+            web/package-lock.json
+
+      - name: Audit Admin Dependencies
+        working-directory: admin
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+      - name: Audit Web Dependencies
+        working-directory: web
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+      - name: Lint Admin App
+        working-directory: admin
+        run: npm run lint
+
+      - name: Lint Web App
+        working-directory: web
+        run: npm run lint
+
+      - name: Run Admin Security & Unit Tests
+        working-directory: admin
+        run: npm test

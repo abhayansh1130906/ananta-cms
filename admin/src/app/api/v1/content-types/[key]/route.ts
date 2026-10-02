@@ -6,18 +6,19 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/audit";
+import { fieldDefinitionSchema } from "@/lib/content/types";
 import { z } from "zod";
 
 import type { Database, Json } from "@/types/database";
 
 const updateContentTypeSchema = z.object({
-  name: z.string().min(1, "Name cannot be empty").optional(),
-  fields: z.array(z.record(z.string(), z.unknown())).optional(),
+  name: z.string().min(1, "Name cannot be empty").max(100).optional(),
+  fields: z.array(fieldDefinitionSchema).max(100).optional(),
   is_singleton: z.boolean().optional(),
 });
 
 export const GET = withHandler(async (_req: Request, context: { params: Promise<{ key: string }> }) => {
-  await requireRole(["admin", "editor"]);
+  await requireRole(["editor", "admin", "super_admin"]);
   const { key } = await context.params;
   const admin = createAdminClient();
 
@@ -28,7 +29,8 @@ export const GET = withHandler(async (_req: Request, context: { params: Promise<
     .maybeSingle();
 
   if (dbError) {
-    return error(dbError.message, "DB_ERROR", 500);
+    console.error("[Content Types GET Key DB Error]", dbError);
+    return error("Failed to retrieve content type", "DB_ERROR", 500);
   }
 
   if (!data) {
@@ -39,7 +41,7 @@ export const GET = withHandler(async (_req: Request, context: { params: Promise<
 });
 
 export const PUT = withHandler(async (req: Request, context: { params: Promise<{ key: string }> }) => {
-  const { user } = await requireRole("admin");
+  const { user } = await requireRole(["admin", "super_admin"]);
   const { key } = await context.params;
   checkRateLimit(`content_types_put_${user.id}`);
 
@@ -58,7 +60,8 @@ export const PUT = withHandler(async (req: Request, context: { params: Promise<{
     .maybeSingle();
 
   if (getError) {
-    return error(getError.message, "DB_ERROR", 500);
+    console.error("[Content Types PUT Get DB Error]", getError);
+    return error("Failed to retrieve existing content type", "DB_ERROR", 500);
   }
 
   if (!current) {
@@ -78,7 +81,8 @@ export const PUT = withHandler(async (req: Request, context: { params: Promise<{
     .single();
 
   if (updateError) {
-    return error(updateError.message, "DB_ERROR", 500);
+    console.error("[Content Types PUT DB Error]", updateError);
+    return error("Failed to update content type", "DB_ERROR", 500);
   }
 
   await logAudit({

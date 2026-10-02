@@ -127,3 +127,33 @@ export function checksum(val: unknown): string {
 }
 
 export const computeChecksum = checksum;
+
+/**
+ * Cryptographically signs a checksum or payload with HMAC-SHA256.
+ */
+export function signChecksum(data: string, secret: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require("node:crypto");
+  return crypto.createHmac("sha256", secret).update(data).digest("hex");
+}
+
+/**
+ * Verifies HMAC-SHA256 signature using timing-safe comparison to prevent timing attacks.
+ */
+export function verifyChecksumSignature(
+  data: string,
+  signature: string,
+  secret: string
+): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crypto = require("node:crypto");
+    const expected = crypto.createHmac("sha256", secret).update(data).digest("hex");
+    const sigBuf = Buffer.from(signature, "hex");
+    const expBuf = Buffer.from(expected, "hex");
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  } catch {
+    return false;
+  }
+}

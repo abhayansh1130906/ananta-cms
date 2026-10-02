@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const GET = withHandler(async () => {
-  await requireRole(["admin", "editor"]);
+  await requireRole(["editor", "admin", "super_admin"]);
   const admin = createAdminClient();
 
   // Fetch live release, pending changes count, and active release concurrently
@@ -35,14 +35,9 @@ export const GET = withHandler(async () => {
       .maybeSingle(),
   ]);
 
-  if (liveError) {
-    return error(liveError.message, "DB_ERROR", 500);
-  }
-  if (countError) {
-    return error(countError.message, "DB_ERROR", 500);
-  }
-  if (activeError) {
-    return error(activeError.message, "DB_ERROR", 500);
+  if (liveError || countError || activeError) {
+    console.error("[Overview DB Error]", { liveError, countError, activeError });
+    return error("Failed to retrieve system overview metrics", "DB_ERROR", 500);
   }
 
   return json({

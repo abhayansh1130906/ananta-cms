@@ -48,12 +48,6 @@ function computeChecksum(data) {
 }
 
 async function main() {
-  console.log("Checking if releases exist...");
-  const { data: existingReleases } = await adminClient
-    .from("releases")
-    .select("*")
-    .order("version", { ascending: false });
-
   // Get admin user
   const { data: usersData } = await adminClient.auth.admin.listUsers();
   const adminUser = env.TEST_ADMIN_EMAIL
